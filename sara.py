@@ -45,22 +45,22 @@ class ContactScreen(Screen):
     def __init__(self, **kwargs):
         super(ContactScreen, self).__init__(**kwargs)
         self.last_submit_time = 0
-        scroll_view = ScrollView()
+        # scroll_view = ScrollView()
 
-        scroll_layout = BoxLayout(orientation='vertical', size_hint_y=1.5, spacing=5)
-        scroll_layout.bind(minimum_height=scroll_layout.setter('height'))
+        # scroll_layout = BoxLayout(orientation='vertical', size_hint_y=1.5, spacing=5)
+        # scroll_layout.bind(minimum_height=scroll_layout.setter('height'))
 
-        self.layout = BoxLayout(orientation='vertical', size_hint_y=1.5, spacing=5)
+        self.layout = BoxLayout(orientation='vertical', size_hint_y=1,spacing=5)
         self.layout.bind(minimum_height=self.layout.setter('height'))
-        
-        self.name_contact = DebouncedTextInput(hint_text='Nom du contact', input_type='text')
-        self.num_contact = DebouncedTextInput(hint_text='Numéro du contact', input_type='tel')
-        self.mail_contact = DebouncedTextInput(hint_text='Mail du contact', input_type='text')
-        self.submit_button = Button(text='Ajouter contact')
+
+        self.name_contact = DebouncedTextInput(hint_text='Nom du contact', input_type='text',size_hint_y=None, height=100)
+        self.num_contact = DebouncedTextInput(hint_text='Numéro du contact', input_type='tel',size_hint_y=None, height=100)
+        self.mail_contact = DebouncedTextInput(hint_text='Mail du contact', input_type='text',size_hint_y=None, height=100)
+        self.submit_button = Button(text='Ajouter contact',size_hint=(1, None), height=80)
         self.submit_button.bind(on_press=self.add_contact)
 
         # Adding a back button
-        self.back_button = Button(text='Retour')
+        self.back_button = Button(text='Retour',height=30)
         self.back_button.bind(on_press=self.go_back)
 
         self.layout.add_widget(self.name_contact)
@@ -68,13 +68,14 @@ class ContactScreen(Screen):
         self.layout.add_widget(self.mail_contact)
         self.layout.add_widget(self.submit_button)
         self.layout.add_widget(self.back_button)
+        self.add_widget(self.layout)
 
-        # Add the BoxLayout to the ScrollView
-        scroll_layout.add_widget(self.layout)
+        # # Add the BoxLayout to the ScrollView
+        # scroll_layout.add_widget(self.layout)
 
-        # Add the ScrollView to the main screen
-        scroll_view.add_widget(scroll_layout)
-        self.add_widget(scroll_view)
+        # # Add the ScrollView to the main screen
+        # scroll_view.add_widget(scroll_layout)
+        # self.add_widget(scroll_view)
 
 
     def add_contact(self, instance):
