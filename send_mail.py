@@ -6,7 +6,7 @@ from email import encoders
 
 def send_mail(to_address, subject, body, attachment_path=None):
     from_address = "remi.brechemier@orange.fr"  # Votre adresse e-mail Orange
-    password = "L06/03/2001Gimka5261"  # Votre mot de passe Orange
+    password = ""  # Votre mot de passe Orange
 
     msg = MIMEMultipart()
     msg['From'] = from_address
