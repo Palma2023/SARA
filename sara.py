@@ -231,51 +231,73 @@ class HomeScreen(Screen):
 class AlarmScreen(Screen):
     def __init__(self, **kwargs):
         super(AlarmScreen, self).__init__(**kwargs)
-        self.last_submit_time = 0
-        self.layout = BoxLayout(orientation='vertical')
-        self.value_input = DebouncedTextInput(hint_text='Valeur d\'alarme', input_type='number')
-        self.pin_input = DebouncedTextInput(hint_text='Numéro du pin', input_type='number')
-        self.submit_button = Button(text='Configurer')
-        self.submit_button.bind(on_press=self.setup_alarm)
+        self.layout = GridLayout(cols=1, spacing=10)  # Utilisez GridLayout avec une seule colonne
 
-        self.layout.add_widget(self.value_input)
+        # Assurez-vous que chaque widget prend une part égale de la hauteur disponible
+        self.state_input = DebouncedTextInput(hint_text='État désiré (0 ou 1) pour signaux numériques', input_type='number', size_hint_y=None, height=100)
+        self.min_value_input = DebouncedTextInput(hint_text='Valeur min pour signaux analogiques', input_type='number', size_hint_y=None, height=100)
+        self.max_value_input = DebouncedTextInput(hint_text='Valeur max pour signaux analogiques', input_type='number', size_hint_y=None, height=100)
+        self.pin_input = DebouncedTextInput(hint_text='Numéro du pin', input_type='number', size_hint_y=None, height=100)
+        self.submit_button = Button(text='Configurer', size_hint_y=None, height=100)
+
+        # Bouton de retour
+        self.back_button = Button(text='Retour', size_hint_y=None, height=100)
+        self.back_button.bind(on_press=self.go_back)
+
+        # Ajout des éléments au GridLayout
+        self.layout.add_widget(self.state_input)
+        self.layout.add_widget(self.min_value_input)
+        self.layout.add_widget(self.max_value_input)
         self.layout.add_widget(self.pin_input)
         self.layout.add_widget(self.submit_button)
+        self.layout.add_widget(self.back_button)
 
         self.add_widget(self.layout)
 
-    def check_alarm(self, alarm_value, pin_number, home_screen):
+        self.submit_button.bind(on_press=self.setup_alarm)
+
+    def go_back(self, instance):
+        self.manager.current = 'home'
+
+    def check_alarm(self, pin_number, home_screen, min_value=None, max_value=None, desired_state=None):
         def update_ui(dt):
-            if alarm_value != 1 or 0:
-                gpio_value = read_analog.read_analog(pin_number)
-            else:
-                gpio_value = lire_valeur.read_value(pin_number)
+            gpio_value = lire_valeur.read_value(pin_number)  # Remplacer par votre fonction de lecture
 
             home_screen.update_value_labels(pin_number, gpio_value)
 
-            if gpio_value < alarm_value:
-                print(ContactListScreen.selected_phone_number)
-                send_sms.sendSms('+'+str(ContactListScreen.selected_phone_number))
-                with open('rapport.csv', 'a', newline='') as csvfile:
-                    report_writer = csv.writer(csvfile, delimiter=',')
-                    report_writer.writerow([time.strftime('%Y-%m-%d %H:%M:%S'), pin_number, gpio_value])
+            # Logique pour les signaux numériques
+            if desired_state is not None and gpio_value == desired_state:
+                self.trigger_alarm(pin_number, gpio_value)
 
-        # Ajouter un identifiant pour chaque intervalle programmé
-        update_event = Clock.schedule_interval(update_ui, 1)
+            # Logique pour les signaux analogiques
+            elif min_value is not None and max_value is not None and (gpio_value < min_value or gpio_value > max_value):
+                self.trigger_alarm(pin_number, gpio_value)
+
+        Clock.schedule_interval(update_ui, 1)
+
+    def trigger_alarm(self, pin_number, gpio_value):
+        # Logique pour déclencher l'alarme
+        send_sms.sendSms('+'+str(ContactListScreen.selected_phone_number))
+        with open('rapport.csv', 'a', newline='') as csvfile:
+            report_writer = csv.writer(csvfile, delimiter=',')
+            report_writer.writerow([time.strftime('%Y-%m-%d %H:%M:%S'), pin_number, gpio_value])
 
     def setup_alarm(self, instance):
-        current_time = time.time()
-        if current_time - self.last_submit_time > 0.3:  # Debounce de 0.3 secondes
-            alarm_value = float(self.value_input.text)
-            pin_number = int(self.pin_input.text)
-            
-            home_screen = self.manager.get_screen('home')
-            alarm_thread = threading.Thread(target=self.check_alarm, args=(alarm_value, pin_number, home_screen))
-            alarm_thread.daemon = True
-            alarm_thread.start()
+        pin_number = int(self.pin_input.text)
+        home_screen = self.manager.get_screen('home')
 
-            self.manager.current = 'home'
-            self.last_submit_time = current_time
+        # Déterminer le mode sélectionné par l'utilisateur et passer les arguments appropriés
+        if self.state_input.text:  # Mode numérique
+            desired_state = int(self.state_input.text)
+            alarm_thread = threading.Thread(target=self.check_alarm, args=(pin_number, home_screen), kwargs={'desired_state': desired_state})
+        else:  # Mode analogique
+            min_value = float(self.min_value_input.text)
+            max_value = float(self.max_value_input.text)
+            alarm_thread = threading.Thread(target=self.check_alarm, args=(pin_number, home_screen), kwargs={'min_value': min_value, 'max_value': max_value})
+
+        alarm_thread.daemon = True
+        alarm_thread.start()
+        self.manager.current = 'home'
 
 
 class AlarmApp(App):
