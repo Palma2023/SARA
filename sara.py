@@ -15,10 +15,10 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.slider import Slider
 from kivy.uix.behaviors import DragBehavior
 import threading
-#import lire_valeur
-#import send_sms
+import lire_valeur
+import send_sms
 import time
-#import read_analog
+import read_analog
 import manage_contact
 import csv
 import send_mail
