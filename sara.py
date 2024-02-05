@@ -15,10 +15,10 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.slider import Slider
 from kivy.uix.behaviors import DragBehavior
 import threading
-import lire_valeur
-import send_sms
+#import lire_valeur
+#import send_sms
 import time
-import read_analog
+#import read_analog
 import manage_contact
 import csv
 import send_mail
@@ -260,28 +260,57 @@ class AlarmScreen(Screen):
         self.manager.current = 'home'
 
     def check_alarm(self, pin_number, home_screen, min_value=None, max_value=None, desired_state=None):
+        self.alarm_active = False
+        self.last_sms_time = 0
+
         def update_ui(dt):
             gpio_value = lire_valeur.read_value(pin_number)  # Remplacer par votre fonction de lecture
 
             home_screen.update_value_labels(pin_number, gpio_value)
 
-            # Logique pour les signaux numériques
-            if desired_state is not None and gpio_value == desired_state:
-                self.trigger_alarm(pin_number, gpio_value)
-
-            # Logique pour les signaux analogiques
-            elif min_value is not None and max_value is not None and (gpio_value < min_value or gpio_value > max_value):
-                self.trigger_alarm(pin_number, gpio_value)
+            # Vérifiez si l'alarme est active et si 4 minutes se sont écoulées depuis le dernier SMS
+            current_time = time.time()
+            if (current_time - self.last_sms_time) >= 240 or self.last_sms_time == 0:
+                # Logique pour les signaux numériques
+                if desired_state is not None and gpio_value == desired_state:
+                    self.trigger_alarm(pin_number, gpio_value)
+                # Logique pour les signaux analogiques
+                elif min_value is not None and max_value is not None and (gpio_value < min_value or gpio_value > max_value):
+                    self.trigger_alarm(pin_number, gpio_value)
 
         Clock.schedule_interval(update_ui, 1)
 
     def trigger_alarm(self, pin_number, gpio_value):
-        # Logique pour déclencher l'alarme
-        send_sms.sendSms('+'+str(ContactListScreen.selected_phone_number))
-        with open('rapport.csv', 'a', newline='') as csvfile:
-            report_writer = csv.writer(csvfile, delimiter=',')
-            report_writer.writerow([time.strftime('%Y-%m-%d %H:%M:%S'), pin_number, gpio_value])
+        if not self.alarm_active:
+            # Logique pour envoyer un SMS
+            send_sms.sendSms('+'+str(ContactListScreen.selected_phone_number))
+            self.alarm_active = True
+            self.last_sms_time = time.time()
 
+            # Écrire dans le fichier CSV
+            with open('rapport.csv', 'a', newline='') as csvfile:
+                report_writer = csv.writer(csvfile, delimiter=',')
+                report_writer.writerow([time.strftime('%Y-%m-%d %H:%M:%S'), pin_number, gpio_value])
+            
+            # Afficher le bouton d'alarme
+            self.show_alarm_button()
+        else:
+            current_time = time.time()
+            if (current_time - self.last_sms_time) >= 240:
+                send_sms.sendSms('+'+str(ContactListScreen.selected_phone_number))
+                self.last_sms_time = current_time
+
+    def show_alarm_button(self):
+        alarm_button = Button(text='Alarme! Cliquez pour acquitter', size_hint=(1, None), height=50)
+        alarm_button.bind(on_press=self.dismiss_alarm)
+
+        # Ajouter le bouton d'alarme à l'écran actuel
+        self.layout.add_widget(alarm_button)
+
+    def dismiss_alarm(self, instance):
+        self.alarm_active = False  # Acquitter l'alarme
+        self.layout.remove_widget(instance)
+        
     def setup_alarm(self, instance):
         pin_number = int(self.pin_input.text)
         home_screen = self.manager.get_screen('home')
